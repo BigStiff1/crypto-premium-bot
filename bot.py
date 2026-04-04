@@ -9,10 +9,8 @@ from telegram.ext import (
 )
 
 # ========================= CONFIG =========================
-TOKEN = os.getenv("BOT_TOKEN")
-if not TOKEN:
-    print("❌ CRITICAL: BOT_TOKEN environment variable is missing!")
-    exit(1)
+TOKEN ="8653969864:AAEmXcFQZgpHXypeLxl9B6bJYH4eM2hXi2g"
+
 
 COINGECKO_API = "https://api.coingecko.com/api/v3"
 RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
