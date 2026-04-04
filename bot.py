@@ -326,17 +326,8 @@ def main():
     app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))
 
     app.job_queue.run_repeating(check_prices, interval=60, first=10)
-
-    port = int(os.getenv("PORT", 8080))
-    webhook_url = RENDER_URL.rstrip("/") if RENDER_URL else None
-    print(f"📡 Starting webhook on {webhook_url} (port {port})")
-
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=port,
-        url_path="",
-        webhook_url=webhook_url
-    )
+      app.run_polling()
+        
 
 if __name__ == "__main__":
     main()
