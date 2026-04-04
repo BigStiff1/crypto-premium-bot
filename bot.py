@@ -326,7 +326,7 @@ def main():
     app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))
 
     app.job_queue.run_repeating(check_prices, interval=60, first=10)
-      app.run_polling()
+    app.run_polling()
         
 
 if __name__ == "__main__":
