@@ -1,5 +1,7 @@
 import os
 import requests
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime, date
 from telegram import Update, LabeledPrice, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -9,11 +11,9 @@ from telegram.ext import (
 )
 
 # ========================= CONFIG =========================
-TOKEN ="8653969864:AAEmXcFQZgpHXypeLxl9B6bJYH4eM2hXi2g"
-
+TOKEN = "8653969864:AAEmXcFQZgpHXypeLxl9B6bJYH4eM2hXi2g"
 
 COINGECKO_API = "https://api.coingecko.com/api/v3"
-RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
 
 # ========================= STORAGE =========================
 user_alerts = {}       # {user_id: [alert_dicts]}
@@ -21,6 +21,18 @@ user_counts = {}       # {user_id: count_today}
 user_premium = {}      # {user_id: True}
 user_last_reset = {}   # {user_id: date}
 total_alerts_today = 0
+
+# ========================= DUMMY SERVER =========================
+def run_dummy_server():
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+        def log_message(self, format, *args):
+            pass
+    port = int(os.getenv("PORT", 8080))
+    HTTPServer(("0.0.0.0", port), Handler).serve_forever()
 
 # ========================= HELPERS =========================
 def reset_daily_count(user_id: int):
@@ -80,7 +92,6 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def trending(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Support both direct commands and callback queries
     msg = update.message or (update.callback_query and update.callback_query.message)
     try:
         r = requests.get(f"{COINGECKO_API}/search/trending", timeout=10)
@@ -173,7 +184,6 @@ async def set_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def myalerts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    # Support both direct commands and callback queries
     msg = update.message or (update.callback_query and update.callback_query.message)
     alerts = user_alerts.get(user_id, [])
 
@@ -194,7 +204,6 @@ PRODUCTS = {
 }
 
 async def upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Support both /upgrade command and callback
     msg = update.message or (update.callback_query and update.callback_query.message)
     keyboard = [
         [InlineKeyboardButton("Basic Lifetime – 500 Stars",  callback_data="premium_basic")],
@@ -214,7 +223,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
 
-    # Quick-action buttons from /start
     if data == "show_upgrade":
         await upgrade(update, context)
         return
@@ -228,7 +236,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("Send `/alert BTC 65000 above` to create one!", parse_mode='Markdown')
         return
 
-    # Premium purchase buttons
     prod = PRODUCTS.get(data)
     if not prod:
         return
@@ -238,7 +245,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         title=prod["title"],
         description=prod["desc"],
         payload=data,
-        provider_token="",   # Empty = Telegram Stars
+        provider_token="",
         currency="XTR",
         prices=[LabeledPrice(prod["title"], prod["stars"])],
     )
@@ -311,6 +318,8 @@ async def check_prices(context: ContextTypes.DEFAULT_TYPE):
 def main():
     print("🚀 CryptoStar Alerts starting on Render...")
 
+    threading.Thread(target=run_dummy_server, daemon=True).start()
+
     app = Application.builder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start",    start))
@@ -326,8 +335,8 @@ def main():
     app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))
 
     app.job_queue.run_repeating(check_prices, interval=60, first=10)
+
     app.run_polling()
-        
 
 if __name__ == "__main__":
     main()
